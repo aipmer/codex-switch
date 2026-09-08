@@ -47,6 +47,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 2. 编辑 `codeproxy-kimi.sh`，替换 `YOUR_KIMI_API_KEY`，复制到 `~/.codex/`（launchd 可能无权访问 Documents 等目录）
 3. 编辑 `com.codexswitch.codeproxy-kimi.plist`，把两处 `REPLACE_WITH_HOME` 替换为你的 home 目录绝对路径，复制到 `~/Library/LaunchAgents/`
 4. 加载：`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codexswitch.codeproxy-kimi.plist`
+5. Codex 桌面版内置 MCP 工具的 schema 会被 Kimi 校验器拒绝（`moonshot flavored json schema` 报错），因此还需 schema 垫片：把 `schema-shim-kimi.py` 复制到 `~/.codex/`，编辑 `com.codexswitch.schema-shim-kimi.plist` 的两处 `REPLACE_WITH_*` 后同样放入 LaunchAgents 并 bootstrap。链路为 Codex → 垫片(8788) → codeproxy(8787) → Kimi；`config-kimi.toml` 的 `base_url` 指向 8788
 
 之后 `codex-switch.sh kimi` 会自动确保路由在运行。
 
@@ -70,6 +71,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 | --- | --- |
 | kimi 模式报 Connection refused | `launchctl print gui/$(id -u)/com.codexswitch.codeproxy-kimi` 看状态；`tail ~/.codex/codeproxy-kimi.log` 看日志；`launchctl kickstart -k gui/$(id -u)/com.codexswitch.codeproxy-kimi` 重启 |
 | kimi 模式报 401 | Key 过期/失效，去 Kimi Code 控制台重建，更新 `~/.codex/codeproxy-kimi.sh` 里的 `--apikey` 后 kickstart 重启 |
+| kimi 模式报 `not a valid moonshot flavored json schema` | 配置绕过了垫片（8788）直连了 codeproxy（8787），检查 `base_url` |
 | kimi 模式报 tool_search 不支持 | 配置走了直连而非路由，确认 `~/.codex/config.toml` 的 `base_url = "http://127.0.0.1:8787/v1"` |
 | 切换后历史会话不见了 | 会话标记没同步，重跑一次切换脚本即可（脚本会翻转 `state_5.sqlite` 的 provider 标记） |
 | 官方模式续聊旧对话报 `array_above_max_length` / `invalid_encrypted_content` | 第三方 reasoning 残留，切到 openai 时脚本会自动清理；仍遇到说明该会话是切换后新建的，重跑一次切换脚本 |
@@ -92,6 +94,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 - `config-openai.toml` / `config-deepseek.toml` / `config-kimi.toml` — 三套配置模板
 - `切换到*.command` — 双击入口
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi 本地路由模板
+- `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema 修正垫片模板
 
 ## License
 

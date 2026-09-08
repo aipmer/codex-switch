@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.codexswitch.schema-shim-kimi</string>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- 把 schema-shim-kimi.py 复制到 ~/.codex/ 下再引用；python3 用 which python3 的绝对路径 -->
+    <string>REPLACE_WITH_PYTHON3</string>
+    <string>REPLACE_WITH_HOME/.codex/schema-shim-kimi.py</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>REPLACE_WITH_HOME/.codex/schema-shim-kimi.log</string>
+  <key>StandardErrorPath</key>
+  <string>REPLACE_WITH_HOME/.codex/schema-shim-kimi.log</string>
+</dict>
+</plist>

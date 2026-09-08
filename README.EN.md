@@ -47,6 +47,7 @@ Recent Codex versions only speak the Responses API and forcibly attach a `tool_s
 2. Edit `codeproxy-kimi.sh`, replace `YOUR_KIMI_API_KEY`, copy it to `~/.codex/` (launchd may not have access to Documents etc.)
 3. Edit `com.codexswitch.codeproxy-kimi.plist`, replace both `REPLACE_WITH_HOME` with your absolute home path, copy to `~/Library/LaunchAgents/`
 4. Load: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codexswitch.codeproxy-kimi.plist`
+5. Codex Desktop's built-in MCP tool schemas are rejected by Kimi's validator (`moonshot flavored json schema` error), so a schema shim is also required: copy `schema-shim-kimi.py` to `~/.codex/`, edit the two `REPLACE_WITH_*` placeholders in `com.codexswitch.schema-shim-kimi.plist`, install it under LaunchAgents and bootstrap. The chain is Codex → shim(8788) → codeproxy(8787) → Kimi; `config-kimi.toml`'s `base_url` points at 8788
 
 After that, `codex-switch.sh kimi` ensures the proxy is running automatically.
 
@@ -70,6 +71,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 | --- | --- |
 | kimi mode: Connection refused | `launchctl print gui/$(id -u)/com.codexswitch.codeproxy-kimi`; `tail ~/.codex/codeproxy-kimi.log`; restart with `launchctl kickstart -k gui/$(id -u)/com.codexswitch.codeproxy-kimi` |
 | kimi mode: 401 | Key expired — regenerate in the Kimi Code console, update `--apikey` in `~/.codex/codeproxy-kimi.sh`, kickstart |
+| kimi mode: `not a valid moonshot flavored json schema` | Config bypassed the shim (8788) and hit codeproxy (8787) directly — check `base_url` |
 | kimi mode: tool_search not supported | Config bypasses the proxy — check `base_url = "http://127.0.0.1:8787/v1"` in `~/.codex/config.toml` |
 | History sessions invisible after switch | Provider flags out of sync — just re-run the switch script |
 | Official mode resume fails with `array_above_max_length` / `invalid_encrypted_content` | Third-party reasoning residue — auto-cleaned on switch to openai; if it persists, the session was created after the switch, re-run the script |
@@ -92,6 +94,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 - `config-openai.toml` / `config-deepseek.toml` / `config-kimi.toml` — config templates
 - `切换到*.command` — double-click launchers
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi local proxy templates
+- `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema shim templates
 
 ## License
 
