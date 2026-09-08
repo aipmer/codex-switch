@@ -1,0 +1,8 @@
+# Codex 官方模式配置模板
+# 只保留切换必需字段；你原有的 projects 信任列表、插件、notify 等个性化配置
+# 请自行合入（本脚本切换会整体覆盖 ~/.codex/config.toml，详见 README 注意事项）。
+
+model = "gpt-5.6-sol"                 # 按需改成你账号可用的官方模型
+model_reasoning_effort = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"

@@ -1,0 +1,20 @@
+# Kimi Code 模式配置模板
+# Kimi 的 /responses 端点不支持新版 Codex 强制携带的 tool_search 工具，
+# 必须走本地路由 codeproxy 做 Responses -> chat/completions 协议转换，
+# 安装方法见 README「Kimi 本地路由」一节。
+
+model_provider = "custom"
+model = "kimi-for-coding"
+model_reasoning_effort = "high"
+disable_response_storage = true
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# 可选：模型选择器目录，只放 Kimi 的模型。
+# model_catalog_json = "/absolute/path/to/model-catalog-kimi.json"
+
+[model_providers.custom]
+name = "kimi"
+base_url = "http://127.0.0.1:8787/v1"   # 本地 codeproxy 路由
+wire_api = "responses"
+stream_idle_timeout_ms = 600000

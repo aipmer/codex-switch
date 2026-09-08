@@ -1,0 +1,20 @@
+# DeepSeek 直连模式配置模板
+# DeepSeek 的 /responses 端点实测兼容新版 Codex 请求（含 tool_search），无需本地路由。
+
+model_provider = "custom"
+model = "deepseek-v4-flash"           # 或 deepseek-v4-pro
+model_reasoning_effort = "high"
+disable_response_storage = true
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# 可选：模型选择器目录，只放 DeepSeek 的模型，避免在 DeepSeek 模式下错选别家模型。
+# 生成方法见 README「模型目录分家」一节。
+# model_catalog_json = "/absolute/path/to/model-catalog-deepseek.json"
+
+[model_providers.custom]
+name = "deepseek"
+base_url = "https://api.deepseek.com"
+wire_api = "responses"
+requires_openai_auth = true
+experimental_bearer_token = "YOUR_DEEPSEEK_API_KEY"   # 替换为你的 sk-... key

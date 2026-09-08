@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.codexswitch.codeproxy-kimi</string>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- 建议把 codeproxy-kimi.sh 复制到 ~/.codex/ 下再引用（launchd 可能无权访问 Documents 等目录） -->
+    <string>/bin/bash</string>
+    <string>REPLACE_WITH_HOME/.codex/codeproxy-kimi.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>REPLACE_WITH_HOME/.codex/codeproxy-kimi.log</string>
+  <key>StandardErrorPath</key>
+  <string>REPLACE_WITH_HOME/.codex/codeproxy-kimi.log</string>
+</dict>
+</plist>
