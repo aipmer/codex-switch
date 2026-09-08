@@ -1,5 +1,7 @@
 # codex-switch
 
+[English README](README.EN.md)
+
 macOS 下 Codex（ChatGPT 桌面应用内置 CLI）的**多供应商一键切换**工具：在 OpenAI 官方（ChatGPT 会员）、DeepSeek、Kimi Code 之间秒切，**历史会话跨供应商无缝续聊**。
 
 适用场景：GPT 会员额度用完/到期时用第三方模型顶班，额度恢复后切回官方——**双向老对话都能接着聊**，不用新开窗口重述上下文。
