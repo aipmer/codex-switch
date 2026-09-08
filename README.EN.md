@@ -2,6 +2,12 @@
 
 [中文文档](README.md)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
+[![Shell](https://img.shields.io/badge/shell-bash-4EAA25.svg)]()
+[![Codex](https://img.shields.io/badge/tested-Codex%200.153.4-blue.svg)]()
+
+
 One-click provider switching for Codex (the CLI bundled with the ChatGPT desktop app) on macOS: switch instantly between **OpenAI official** (ChatGPT subscription), **DeepSeek**, and **Kimi Code** — with **seamless cross-provider conversation resume**.
 
 Built for a real workflow: when your GPT quota runs out or expires, fall back to a third-party model; when quota resets, switch back — **old conversations continue in both directions**, no new windows, no re-explaining context.
