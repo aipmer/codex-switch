@@ -93,7 +93,7 @@ cfg = {
 keep, default = cfg[mode]
 pat = re.compile(r'"model":"([^"]+)"')
 roots = [os.path.join(home, 'sessions'), os.path.join(home, 'archived_sessions')]
-changed_files, changed_names = 0, set()
+changed_files, changed_names, changed_paths = 0, set(), []
 
 for root in roots:
     if not os.path.isdir(root):
@@ -122,11 +122,18 @@ for root in roots:
                 with open(p, 'w', encoding='utf-8') as fh:
                     fh.write(new)
                 changed_files += 1
+                changed_paths.append(p)
 
 if changed_files:
     print(f"已改写 {changed_files} 个会话文件: {sorted(changed_names)} -> {default}")
 else:
     print("无需改写（历史会话模型名均已匹配）")
+
+# 记录被改写的线程 id，供最后统一失效 GUI 投影缓存
+uids = re.findall(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$', '\n'.join(changed_paths), re.M)
+if uids:
+    with open(os.path.join(home, '.switch-rewritten-threads'), 'a') as fh:
+        fh.write('\n'.join(uids) + '\n')
 PYEOF
 
 if [ "$MODE" = "openai" ]; then
@@ -158,7 +165,7 @@ def clean(node, stats):
         for v in node:
             clean(v, stats)
 
-changed = 0; total = {'content': 0, 'encrypted_content': 0, 'id': 0, 'fc_prefix': 0}
+changed = 0; changed_paths = []; total = {'content': 0, 'encrypted_content': 0, 'id': 0, 'fc_prefix': 0}
 for root in roots:
     if not os.path.isdir(root):
         continue
@@ -195,6 +202,7 @@ for root in roots:
                     shutil.copy(p, bak)
                 open(p, 'w', encoding='utf-8').writelines(out)
                 changed += 1
+                changed_paths.append(p)
                 for k in total:
                     total[k] += stats[k]
 
@@ -202,6 +210,34 @@ if changed:
     print(f"已清理 {changed} 个会话文件: content {total['content']} 处, encrypted_content {total['encrypted_content']} 处, reasoning id {total['id']} 处, 工具 ID 前缀 {total['fc_prefix']} 处")
 else:
     print("无需清理（无第三方会话残留）")
+
+# 记录被清理的线程 id，供最后统一失效 GUI 投影缓存
+uids = re.findall(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$', '\n'.join(changed_paths), re.M)
+if uids:
+    with open(os.path.join(home, '.switch-rewritten-threads'), 'a') as fh:
+        fh.write('\n'.join(uids) + '\n')
+PYEOF
+fi
+
+# 让 GUI 的对话投影缓存（thread_history_1.sqlite）对被改写的线程失效。
+# 投影按字节偏移索引 rollout 文件，原地改写会让 GUI 停在旧位置、显示过期内容
+# （实测确认）；删除投影行后 app 会从 jsonl 自动重建。
+if [ -f "$CODEX_HOME/.switch-rewritten-threads" ]; then
+  echo "失效被改写线程的 GUI 投影缓存..."
+  python3 - "$CODEX_HOME" <<'PYEOF'
+import os, sys, sqlite3
+home = sys.argv[1]
+flag = os.path.join(home, '.switch-rewritten-threads')
+with open(flag) as fh:
+    uids = sorted(set(u.strip() for u in fh if u.strip()))
+db = os.path.join(home, 'thread_history_1.sqlite')
+if uids and os.path.exists(db):
+    con = sqlite3.connect(db)
+    for t in ('thread_items', 'thread_turns', 'thread_history_projection_state', 'thread_realtime_items'):
+        con.execute(f"delete from {t} where thread_id in ({','.join('?' * len(uids))})", uids)
+    con.commit(); con.close()
+    print(f"已失效 {len(uids)} 个线程的投影缓存（重启后自动重建）")
+os.remove(flag)
 PYEOF
 fi
 

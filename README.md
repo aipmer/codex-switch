@@ -20,6 +20,7 @@ macOS 下 Codex（ChatGPT 桌面应用内置 CLI）的**多供应商一键切换
 - **跨供应商续聊自动化**（本项目核心价值，两个实测出来的坑都已内置处理）：
   1. **模型名改写**：codex 续聊时的 pre-sampling compact 钉死使用会话元数据里记录的模型名，与当前配置无关。跨供应商续聊会被对方 API 以 `invalid_request_error` 拒绝。脚本在每次切换时把历史会话 rollout 里的 `"model":"..."` 批量改写为目标供应商的模型名。
   2. **第三方历史残留清理**（仅切回官方时）：第三方直连 `/responses` 产生的历史项会撞上官方 API 四重校验——reasoning 的 `content` 数组（`array_above_max_length`）、本地 Fernet `encrypted_content`（`invalid_encrypted_content`）、reasoning 的 `rs_` id（`Item with id 'rs_...' not found`，官方 store=false 无记录）、工具调用 `tool_` 前缀 id（`invalid_id_prefix`，官方要求 `fc` 开头）。切到 openai 时脚本递归剥离 reasoning 的 content/encrypted_content/id 并把工具 id 前缀改为 `fc`，官方只收到 summary，可正常续聊。
+  3. **GUI 投影缓存失效**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。脚本在改写/清理后自动删除被影响线程的投影行，app 重启后从 jsonl 自动重建。
 - 所有改写/清理前自动留首次备份（`.bak-model` / `.bak-reasoning` / `.bak-switch`）
 - 如已安装 CC Switch，自动同步其「使用中」标记（仅作面板展示）
 
@@ -74,6 +75,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 | kimi 模式报 `not a valid moonshot flavored json schema` | 配置绕过了垫片（8788）直连了 codeproxy（8787），检查 `base_url` |
 | kimi 模式报 tool_search 不支持 | 配置走了直连而非路由，确认 `~/.codex/config.toml` 的 `base_url = "http://127.0.0.1:8787/v1"` |
 | 切换后历史会话不见了 | 会话标记没同步，重跑一次切换脚本即可（脚本会翻转 `state_5.sqlite` 的 provider 标记） |
+| 切换后对话内容停在旧时间、最新消息不显示 | GUI 投影缓存（`thread_history_1.sqlite`）按字节偏移索引 rollout 文件，脚本改写后偏移失效——脚本已自动失效受影响线程的投影；旧版本脚本可手动删除该库中对应 thread_id 的投影行（或整表清空），重启 app 自动重建，数据在 jsonl 里不会丢 |
 | 官方模式续聊旧对话报 `array_above_max_length` / `invalid_encrypted_content` / `invalid_id_prefix` / `Item with id 'rs_...' not found` | 第三方历史残留（reasoning content/encrypted_content/rs_ id、工具调用 tool_ 前缀 id），切到 openai 时脚本会自动清理；仍遇到说明该会话是切换后新建的，重跑一次切换脚本 |
 | 第三方模式续聊官方会话报 `passed gpt-5.x` | 会话元数据模型名未改写，重跑一次切换脚本 |
 | 界面选到了别家模型 | 目录未分家，见「模型目录分家」一节 |
