@@ -19,7 +19,7 @@ Built for a real workflow: when your GPT quota runs out or expires, fall back to
 - One-click switch: quit Codex app → write config → sync session visibility flags → relaunch
 - **Automated cross-provider resume** (the core value — two empirically discovered pitfalls, both handled):
   1. **Model-name rewriting**: on resume, codex's pre-sampling compaction pins the model name recorded in the session metadata, ignoring your current config. Cross-provider resumes get rejected with `invalid_request_error`. On every switch, the script batch-rewrites `"model":"..."` in all historical rollout files to the target provider's model name.
-  2. **Reasoning-residue cleanup** (only when switching to OpenAI): reasoning items produced by DeepSeek's direct `/responses` endpoint carry a `content` array and a locally Fernet-encrypted `encrypted_content`. The official API rejects them with `array_above_max_length` / `invalid_encrypted_content`. When switching to openai, the script recursively strips both fields (including items nested in `compacted` payloads); OpenAI receives summaries only and resume works.
+  2. **Third-party residue cleanup** (only when switching to OpenAI): history items produced by a third-party direct `/responses` endpoint trip four official-API validations — a reasoning `content` array (`array_above_max_length`), a locally Fernet-encrypted `encrypted_content` (`invalid_encrypted_content`), a third-party `rs_` reasoning id (`Item with id 'rs_...' not found`, since the official store=false has no record), and `tool_`-prefixed tool-call ids (`invalid_id_prefix`; the official API requires `fc`). When switching to openai, the script recursively strips reasoning content/encrypted_content/id and rewrites tool-call id prefixes to `fc` (including items nested in `compacted` payloads); OpenAI receives summaries only and resume works.
 - First-touch backups before any rewrite/cleanup (`.bak-model` / `.bak-reasoning` / `.bak-switch`)
 - If CC Switch is installed, its "in use" flag is synced automatically (panel display only)
 
@@ -74,7 +74,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 | kimi mode: `not a valid moonshot flavored json schema` | Config bypassed the shim (8788) and hit codeproxy (8787) directly — check `base_url` |
 | kimi mode: tool_search not supported | Config bypasses the proxy — check `base_url = "http://127.0.0.1:8787/v1"` in `~/.codex/config.toml` |
 | History sessions invisible after switch | Provider flags out of sync — just re-run the switch script |
-| Official mode resume fails with `array_above_max_length` / `invalid_encrypted_content` | Third-party reasoning residue — auto-cleaned on switch to openai; if it persists, the session was created after the switch, re-run the script |
+| Official mode resume fails with `array_above_max_length` / `invalid_encrypted_content` / `invalid_id_prefix` / `Item with id 'rs_...' not found` | Third-party history residue (reasoning content/encrypted_content/rs_ id, `tool_`-prefixed tool-call ids) — auto-cleaned on switch to openai; if it persists, the session was created after the switch, re-run the script |
 | Third-party resume of official session fails with `passed gpt-5.x` | Session model names not rewritten — re-run the switch script |
 | Picker shows another provider's models | Catalogs not split — see "Split model catalogs" |
 | Verify proxy health | `curl -s http://127.0.0.1:8787/v1/responses -H "Content-Type: application/json" -d '{"model":"kimi-for-coding","input":"hi","stream":false}'` |

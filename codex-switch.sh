@@ -130,23 +130,26 @@ else:
 PYEOF
 
 if [ "$MODE" = "openai" ]; then
-  echo "清理第三方 reasoning 残留（解决官方续聊校验报错）..."
-  # DeepSeek 等第三方直连 /responses 产生的 reasoning 项带 content 数组和
-  # 本地 Fernet 加密的 encrypted_content，重放到 OpenAI 官方 API 会报
-  # array_above_max_length / invalid_encrypted_content（0.153.4 仍未覆盖）。
-  # 切回官方前递归剥离所有 reasoning 项的这两个字段（含 compacted 的
-  # replacement_history 嵌套项）。剥离后官方只拿到 summary，可正常续聊；
-  # 首次清理前留 .bak-reasoning。
+  echo "清理第三方会话残留（解决官方续聊校验报错）..."
+  # 切回官方前对历史会话做三类清理（均为实测确认的兼容问题）：
+  # 1. reasoning 项剥离 content 数组和本地 Fernet 加密的 encrypted_content
+  #    —— 否则官方 API 报 array_above_max_length / invalid_encrypted_content
+  # 2. reasoning 项剥离 id —— 第三方产生的 rs_ id 在官方侧无存储记录，
+  #    重放被当作引用解析报 "Item with id 'rs_...' not found"（store=false）
+  # 3. 工具调用 id/call_id 的 tool_ 等前缀改成 fc 前缀
+  #    —— 否则官方报 invalid_id_prefix: Expected an ID that begins with 'fc'
+  # 剥离后官方只拿到 summary，可正常续聊；首次清理前留 .bak-reasoning。
   python3 - "$CODEX_HOME" <<'PYEOF'
-import os, sys, json, shutil
+import os, sys, json, re, shutil
 
 home = sys.argv[1]
 roots = [os.path.join(home, 'sessions'), os.path.join(home, 'archived_sessions')]
+ID_PAT = re.compile(r'"(id|call_id)":\s*"tool_')
 
 def clean(node, stats):
     if isinstance(node, dict):
-        if node.get('type') == 'reasoning':
-            for k in ('content', 'encrypted_content'):
+        if node.get('type') in ('reasoning', 'Reasoning'):
+            for k in ('content', 'encrypted_content', 'id'):
                 if k in node:
                     del node[k]; stats[k] += 1
         for v in node.values():
@@ -155,7 +158,7 @@ def clean(node, stats):
         for v in node:
             clean(v, stats)
 
-changed = 0; total = {'content': 0, 'encrypted_content': 0}
+changed = 0; total = {'content': 0, 'encrypted_content': 0, 'id': 0, 'fc_prefix': 0}
 for root in roots:
     if not os.path.isdir(root):
         continue
@@ -165,15 +168,20 @@ for root in roots:
                 continue
             p = os.path.join(dirpath, fn)
             try:
-                head = open(p, encoding='utf-8', errors='ignore').read()
+                text = open(p, encoding='utf-8', errors='ignore').read()
             except OSError:
                 continue
-            if '"encrypted_content"' not in head and '"content":[' not in head:
+            interesting = ('"encrypted_content"' in text or '"content":[' in text
+                           or 'reasoning' in text or '"tool_' in text)
+            if not interesting:
                 continue
-            stats = {'content': 0, 'encrypted_content': 0}
+            stats = {'content': 0, 'encrypted_content': 0, 'id': 0, 'fc_prefix': 0}
             out = []
-            for line in head.splitlines(keepends=True):
-                if 'reasoning' not in line:
+            for line in text.splitlines(keepends=True):
+                # 规则 3：工具调用 ID 前缀（纯文本替换，覆盖所有嵌套副本）
+                line, n = ID_PAT.subn(r'"\1": "fc', line)
+                stats['fc_prefix'] += n
+                if 'reasoning' not in line and 'Reasoning' not in line:
                     out.append(line); continue
                 try:
                     d = json.loads(line)
@@ -181,19 +189,19 @@ for root in roots:
                     out.append(json.dumps(d, ensure_ascii=False) + '\n')
                 except Exception:
                     out.append(line)
-            if stats['content'] or stats['encrypted_content']:
+            if any(stats.values()):
                 bak = p + '.bak-reasoning'
                 if not os.path.exists(bak):
                     shutil.copy(p, bak)
                 open(p, 'w', encoding='utf-8').writelines(out)
                 changed += 1
-                total['content'] += stats['content']
-                total['encrypted_content'] += stats['encrypted_content']
+                for k in total:
+                    total[k] += stats[k]
 
 if changed:
-    print(f"已清理 {changed} 个会话文件: content {total['content']} 处, encrypted_content {total['encrypted_content']} 处")
+    print(f"已清理 {changed} 个会话文件: content {total['content']} 处, encrypted_content {total['encrypted_content']} 处, reasoning id {total['id']} 处, 工具 ID 前缀 {total['fc_prefix']} 处")
 else:
-    print("无需清理（无第三方 reasoning 残留）")
+    print("无需清理（无第三方会话残留）")
 PYEOF
 fi
 
