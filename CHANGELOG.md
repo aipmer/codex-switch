@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-10
+
 ### 修复
 
 - **GUI 投影缓存失效（2026-09-09）**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。现在脚本在改写/清理后自动失效受影响线程的投影，app 重启后从 jsonl 重建。（`4cae38c`）
@@ -37,5 +39,6 @@
 - **模型目录分家**：DeepSeek / Kimi 各用独立模型目录，GUI 模型选择器只显示当前供应商的模型，杜绝错选
 - **CC Switch 可选集成**：已安装则自动同步其「使用中」标记（仅面板展示，不依赖）
 
-[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/aipmer/codex-switch/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/aipmer/codex-switch/releases/tag/v1.0.0

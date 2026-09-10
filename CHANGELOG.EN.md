@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-10
+
 ### Fixed
 
 - **GUI projection-cache invalidation (2026-09-09)**: the Codex GUI reads conversations from a projection in `thread_history_1.sqlite` that indexes rollout files by byte offset. In-place rewrites invalidated those offsets, leaving the GUI stuck showing stale content. The script now invalidates the affected threads' projection rows after any rewrite/cleanup; the app rebuilds them from the jsonl on next launch. (`4cae38c`)
@@ -37,5 +39,6 @@ First public release.
 - **Split model catalogs**: separate catalogs for DeepSeek and Kimi so the GUI model picker only shows the active provider's models
 - **Optional CC Switch integration**: syncs its "in use" flag when installed (panel display only, not required)
 
-[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/aipmer/codex-switch/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/aipmer/codex-switch/releases/tag/v1.0.0
