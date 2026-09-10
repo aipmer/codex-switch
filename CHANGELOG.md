@@ -11,14 +11,16 @@
 
 ### 修复
 
-- **GUI 投影缓存失效**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。现在脚本在改写/清理后自动失效受影响线程的投影，app 重启后从 jsonl 重建。（`4cae38c`）
-- **官方模式续聊的四重校验**：第三方直连产生的历史项会依次触发官方 API 的四层校验——reasoning `content` 数组（`array_above_max_length`）、本地 Fernet `encrypted_content`（`invalid_encrypted_content`）、工具调用 `tool_` 前缀 id（`invalid_id_prefix`）、reasoning 的第三方 `rs_` id（`Item with id 'rs_...' not found`）。切到 openai 时脚本自动剥离前三者并剥离 reasoning id、工具 id 前缀改为 `fc`，实测可正常续聊。（`15538dc`）
-- **Kimi schema 校验**：新增 8788 端口 schema 垫片，修复 MCP 工具的 `$ref` + 兄弟 `type` 写法被 Kimi 校验器拒绝（`moonshot flavored json schema`）的问题，K3/K2.7 均实测 200。（`e6505f7`）
+- **GUI 投影缓存失效（2026-09-09）**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。现在脚本在改写/清理后自动失效受影响线程的投影，app 重启后从 jsonl 重建。（`4cae38c`）
+- **官方模式续聊的四重校验（2026-09-08/09）**：第三方直连产生的历史项会依次触发官方 API 的四层校验——reasoning `content` 数组（`array_above_max_length`）、本地 Fernet `encrypted_content`（`invalid_encrypted_content`）、工具调用 `tool_` 前缀 id（`invalid_id_prefix`）、reasoning 的第三方 `rs_` id（`Item with id 'rs_...' not found`）。切到 openai 时脚本自动剥离 reasoning 的 content/encrypted_content/id 并把工具 id 前缀改为 `fc`，实测可正常续聊。（`15538dc`）
+- **Kimi schema 校验（2026-09-08）**：新增 8788 端口 schema 垫片，修复 MCP 工具的 `$ref` + 兄弟 `type` 写法被 Kimi 校验器拒绝（`moonshot flavored json schema`）的问题，K3/K2.7 均实测 200。（`e6505f7`）
 
 ### 文档
 
+- **双向续聊实测结论（2026-09-08）**：README 完整记录正/反向跨供应商续聊的实测结果、四层校验逐层症状与清理代价
+- **故障排查表扩充（2026-09-09）**：新增「对话内容停在旧时间」「切换后对话从列表消失」两条症状，附 config 与 `state_5.sqlite` 标记一致性自查命令
+- **CC Switch 定位定调（2026-09-07）**：实测确认 CC Switch（v3.19.2 / v3.20.1，含接管模式）点「启用」不会写入 `~/.codex/config.toml`，文档明确其仅作只读面板、真实切换必须走脚本
 - 新增英文 README（`3285b92`）、徽章（`d45f61c`）、社交预览图（`fcf2b79`）
-- 故障排查表补充：四重校验症状、GUI 投影缓存、会话标记错位自查命令
 
 ## [1.0.0] - 2026-09-08
 
