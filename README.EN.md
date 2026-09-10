@@ -1,6 +1,6 @@
 # codex-switch
 
-[中文文档](README.md)
+[中文文档](README.md) | [Changelog](CHANGELOG.EN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
