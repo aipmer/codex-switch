@@ -52,6 +52,21 @@ Recent Codex versions only speak the Responses API and forcibly attach a `tool_s
 
 After that, `codex-switch.sh kimi` ensures the proxy is running automatically.
 
+## Browser control in third-party mode (optional)
+
+Codex's embedded browser / Computer Use is an OpenAI cloud service and always fails with `Codex auth token is unavailable` in third-party mode. If you have [Kimi WebBridge](https://www.kimi.com/features/webbridge) installed (Kimi's official browser extension; local daemon at 127.0.0.1:10086), this repo ships two bridges that let Codex drive your real browser — with your login sessions — in third-party mode:
+
+1. **Codex Skill (recommended)**: copy `skills/webbridge-browser/SKILL.md` to `~/.codex/skills/webbridge-browser/`. Codex learns to call WebBridge via `exec_command` curl (navigate / snapshot / click / fill / evaluate). Note: `codex exec` sandboxes networking by default — use `-s danger-full-access`, or full-access GUI profiles.
+2. **MCP bridge (fallback)**: append to `config-kimi.toml` / `config-deepseek.toml` (adjust the path):
+   ```toml
+   [mcp_servers.webbridge]
+   command = "/usr/bin/python3"
+   args = ["/path/to/webbridge-mcp.py"]
+   startup_timeout_sec = 20
+   tool_timeout_sec = 180
+   ```
+   Note: in Codex 0.153.4, `tool_search_always_defer_mcp_tools` is marked removed and hardcoded to true, so MCP tools are hidden behind tool_search and invisible to the model in exec mode — the GUI can still surface them via tool_suggest, but the skill remains the primary path.
+
 ## Split model catalogs (optional but recommended)
 
 If both third-party configs share one model catalog (`model_catalog_json`), Codex's model picker lists everyone's models — picking a Kimi model in DeepSeek mode gets rejected by the API. Split the catalog per provider so DeepSeek mode shows only `deepseek-v4-flash / deepseek-v4-pro` and Kimi mode shows only Kimi models.
@@ -74,6 +89,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 | kimi mode: 401 | Key expired — regenerate in the Kimi Code console, update `--apikey` in `~/.codex/codeproxy-kimi.sh`, kickstart |
 | kimi mode: `not a valid moonshot flavored json schema` | Config bypassed the shim (8788) and hit codeproxy (8787) directly — check `base_url` |
 | kimi mode: tool_search not supported | Config bypasses the proxy — check `base_url = "http://127.0.0.1:8787/v1"` in `~/.codex/config.toml` |
+| Third-party mode browser control fails with `Codex auth token is unavailable` | Embedded browser / Computer Use is an OpenAI cloud service — never available in third-party mode. Use the WebBridge bridge in "Browser control in third-party mode" |
 | History sessions invisible after switch | Provider flags out of sync — just re-run the switch script |
 | Conversation shows stale content after switch (latest messages missing) | The GUI's projection cache (`thread_history_1.sqlite`) indexes rollout files by byte offset; in-place rewrites invalidate it — the script now auto-invalidates projections for rewritten threads; with older versions, delete that thread's projection rows (or clear the tables) and restart the app — it rebuilds from the jsonl, which is never touched destructively |
 | Official mode resume fails with `array_above_max_length` / `invalid_encrypted_content` / `invalid_id_prefix` / `Item with id 'rs_...' not found` | Third-party history residue (reasoning content/encrypted_content/rs_ id, `tool_`-prefixed tool-call ids) — auto-cleaned on switch to openai; if it persists, the session was created after the switch, re-run the script |
@@ -97,6 +113,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 - `切换到*.command` — double-click launchers
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi local proxy templates
 - `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema shim templates
+- `webbridge-mcp.py` + `skills/webbridge-browser/SKILL.md` — browser-control bridge for third-party mode (requires Kimi WebBridge)
 
 ## License
 

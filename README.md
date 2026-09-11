@@ -52,6 +52,21 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 
 之后 `codex-switch.sh kimi` 会自动确保路由在运行。
 
+## 第三方模式的浏览器控制（可选）
+
+Codex 的内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模式下必然报 `Codex auth token is unavailable`，无法使用。如果你安装了 [Kimi WebBridge](https://www.kimi.com/zh-cn/features/webbridge)（Kimi 官方浏览器插件，本地守护进程在 127.0.0.1:10086），本仓库提供两种桥接方式让 Codex 在第三方模式下也能操作用户真实浏览器（自带登录态）：
+
+1. **Codex Skill（推荐主路径）**：把 `skills/webbridge-browser/SKILL.md` 复制到 `~/.codex/skills/webbridge-browser/`。Codex 会学会用 `exec_command` curl 调用 WebBridge（navigate / snapshot / click / fill / evaluate）。注意 `codex exec` 默认沙箱禁网，需 `-s danger-full-access` 或在 GUI 全权限配置下使用。
+2. **MCP 桥接（备用）**：在 `config-kimi.toml` / `config-deepseek.toml` 末尾追加（路径按实际调整）：
+   ```toml
+   [mcp_servers.webbridge]
+   command = "/usr/bin/python3"
+   args = ["/path/to/webbridge-mcp.py"]
+   startup_timeout_sec = 20
+   tool_timeout_sec = 180
+   ```
+   注意：Codex 0.153.4 的 `tool_search_always_defer_mcp_tools` 已被官方标记 removed 并硬编码为 true，MCP 工具默认藏在 tool_search 后面，exec 模式下模型不可见——GUI 里可靠 tool_suggest 自动发现，所以主路径仍推荐 skill。
+
 ## 模型目录分家（可选但推荐）
 
 若两套第三方配置共用一份模型目录（`model_catalog_json`），Codex 界面的模型选择器会把两家的模型全列出来——在 DeepSeek 模式选到 Kimi 模型会请求被拒。建议拆成两份各指各的：DeepSeek 模式只显示 `deepseek-v4-flash / deepseek-v4-pro`，Kimi 模式只显示 `kimi-for-coding / k3` 等。
@@ -74,6 +89,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 | kimi 模式报 401 | Key 过期/失效，去 Kimi Code 控制台重建，更新 `~/.codex/codeproxy-kimi.sh` 里的 `--apikey` 后 kickstart 重启 |
 | kimi 模式报 `not a valid moonshot flavored json schema` | 配置绕过了垫片（8788）直连了 codeproxy（8787），检查 `base_url` |
 | kimi 模式报 tool_search 不支持 | 配置走了直连而非路由，确认 `~/.codex/config.toml` 的 `base_url = "http://127.0.0.1:8787/v1"` |
+| 第三方模式下浏览器控制报 `Codex auth token is unavailable` | 内嵌浏览器/Computer Use 是 OpenAI 云端服务，第三方模式必然不可用。用「第三方模式的浏览器控制」一节的 WebBridge 桥接方案 |
 | 切换后历史会话不见了 | 会话标记没同步，重跑一次切换脚本即可（脚本会翻转 `state_5.sqlite` 的 provider 标记） |
 | 切换后对话内容停在旧时间、最新消息不显示 | GUI 投影缓存（`thread_history_1.sqlite`）按字节偏移索引 rollout 文件，脚本改写后偏移失效——脚本已自动失效受影响线程的投影；旧版本脚本可手动删除该库中对应 thread_id 的投影行（或整表清空），重启 app 自动重建，数据在 jsonl 里不会丢 |
 | 官方模式续聊旧对话报 `array_above_max_length` / `invalid_encrypted_content` / `invalid_id_prefix` / `Item with id 'rs_...' not found` | 第三方历史残留（reasoning content/encrypted_content/rs_ id、工具调用 tool_ 前缀 id），切到 openai 时脚本会自动清理；仍遇到说明该会话是切换后新建的，重跑一次切换脚本 |
@@ -97,6 +113,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 - `切换到*.command` — 双击入口
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi 本地路由模板
 - `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema 修正垫片模板
+- `webbridge-mcp.py` + `skills/webbridge-browser/SKILL.md` — 第三方模式的浏览器控制桥接（需 Kimi WebBridge）
 
 ## License
 

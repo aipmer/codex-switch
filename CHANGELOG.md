@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-11
+
+### 新增
+
+- **第三方模式的浏览器控制**：Codex 内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模式下必然报 `Codex auth token is unavailable`。新增两种基于 Kimi WebBridge 的桥接，让 Codex 在第三方模式下操作用户真实浏览器（自带登录态）：
+  - `skills/webbridge-browser/SKILL.md`（推荐主路径）：教 Codex 用 `exec_command` curl 调用 WebBridge 守护进程，实测全链路通过
+  - `webbridge-mcp.py`（备用）：MCP stdio 桥接服务。注意 Codex 0.153.4 将 `tool_search_always_defer_mcp_tools` 硬编码为 true，MCP 工具在 exec 模式下不可见，仅供 GUI 的 tool_suggest 发现
+
 ## [1.1.0] - 2026-09-10
 
 ### 修复
@@ -39,6 +47,7 @@
 - **模型目录分家**：DeepSeek / Kimi 各用独立模型目录，GUI 模型选择器只显示当前供应商的模型，杜绝错选
 - **CC Switch 可选集成**：已安装则自动同步其「使用中」标记（仅面板展示，不依赖）
 
-[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/aipmer/codex-switch/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/aipmer/codex-switch/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/aipmer/codex-switch/releases/tag/v1.0.0

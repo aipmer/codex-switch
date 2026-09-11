@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-11
+
+### Added
+
+- **Browser control in third-party mode**: Codex's embedded browser / Computer Use is an OpenAI cloud service and always fails with `Codex auth token is unavailable` in third-party mode. Two new bridges based on Kimi WebBridge let Codex drive the user's real browser (with login sessions):
+  - `skills/webbridge-browser/SKILL.md` (recommended): teaches Codex to call the WebBridge daemon via `exec_command` curl — verified end-to-end
+  - `webbridge-mcp.py` (fallback): an MCP stdio bridge. Note Codex 0.153.4 hardcodes `tool_search_always_defer_mcp_tools` to true, so MCP tools are invisible in exec mode and only surfaced via the GUI's tool_suggest
+
 ## [1.1.0] - 2026-09-10
 
 ### Fixed
@@ -39,6 +47,7 @@ First public release.
 - **Split model catalogs**: separate catalogs for DeepSeek and Kimi so the GUI model picker only shows the active provider's models
 - **Optional CC Switch integration**: syncs its "in use" flag when installed (panel display only, not required)
 
-[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/aipmer/codex-switch/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/aipmer/codex-switch/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/aipmer/codex-switch/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/aipmer/codex-switch/releases/tag/v1.0.0
