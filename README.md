@@ -23,6 +23,7 @@ macOS 下 Codex（ChatGPT 桌面应用内置 CLI）的**多供应商一键切换
   3. **GUI 投影缓存失效**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。脚本在改写/清理后自动删除被影响线程的投影行，app 重启后从 jsonl 自动重建。
   4. **分叉会话 history_base 重映射**：分叉（fork）会话文件头内嵌 `history_base.end_byte_offset`，指向源 rollout 文件的字节位置；原地改写源文件后偏移越界，App 报 `invalid paginated history lineage: cutoff byte offset is past the source rollout`、对话无法打开（该偏移存在 jsonl 里而非数据库，失效缓存救不了）。`remap-history-base.py` 按 `end_ordinal_exclusive` 在源文件中重新定位同一行并把 cutoff 更新为当前字节偏移，支持多级分叉链，幂等可反复运行；每次切换自动调用，也可独立运行 `python3 remap-history-base.py ~/.codex` 修复存量。
 - **增量 + 流式改写**（2026-09-18）：两趟改写各记录独立的处理时间戳，只扫上次处理后变动过的文件（归档会话处理一次即永久跳过）；全程逐行流式读写，不再把整个文件读进内存。切换耗时不再随会话积累增长（实测会话库 14 GB / 448 个文件、单文件最大 464 MB 的场景）。升级后首次切换会做最后一次全量扫描建立基线。
+- **默认模型预设**（2026-09-18）：切换后无需在界面重新选择模型——openai→`gpt-5.6-terra`、kimi→`k3-256k`、deepseek→`deepseek-v4-flash`，强度统一 medium。除写入 config 的新会话默认值外，还会翻转 `threads` 表中每个会话钉死的 `model` / `reasoning_effort`，否则打开旧会话仍用旧模型执行失败（按需修改脚本里的 `DEF_MODEL` 与各 config 模板的 `model` 字段）。
 - 所有改写/清理前自动留首次备份（`.bak-model` / `.bak-reasoning` / `.bak-switch`）
 - 如已安装 CC Switch，自动同步其「使用中」标记（仅作面板展示）
 

@@ -3,7 +3,7 @@
 
 model_provider = "custom"
 model = "deepseek-v4-flash"           # 或 deepseek-v4-pro
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 disable_response_storage = true
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

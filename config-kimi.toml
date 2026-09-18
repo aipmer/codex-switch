@@ -4,8 +4,8 @@
 # 安装方法见 README「Kimi 本地路由」一节。
 
 model_provider = "custom"
-model = "kimi-for-coding"
-model_reasoning_effort = "high"
+model = "k3-256k"
+model_reasoning_effort = "medium"
 disable_response_storage = true
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

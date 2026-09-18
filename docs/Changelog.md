@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-18
+
+### Added
+
+- **默认模型预设**：切换后无需在界面重新选择模型——openai→`gpt-5.6-terra`、kimi→`k3-256k`、deepseek→`deepseek-v4-flash`，强度统一 medium。除 config 模板的新会话默认值外，切换脚本还会翻转 `state_5.sqlite` 的 `threads` 表中每个会话钉死的 `model` / `reasoning_effort`，否则打开旧会话仍用旧模型执行失败。可按需修改脚本里的 `DEF_MODEL` 与各 config 模板的 `model` 字段
+
 ## [1.3.0] - 2026-09-18
 
 ### Added

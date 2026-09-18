@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-18
+
+### Added
+
+- **Default-model presets**: no need to re-pick a model in the UI after switching — openai→`gpt-5.6-terra`, kimi→`k3-256k`, deepseek→`deepseek-v4-flash`, all at medium reasoning effort. Besides the new-session defaults in the config templates, the switch script also flips the pinned `model` / `reasoning_effort` of every thread in `state_5.sqlite`'s `threads` table — otherwise reopening an old conversation still runs on the old model and fails. Adjust `DEF_MODEL` in the script and the `model` field in each config template as needed
+
 ## [1.3.0] - 2026-09-18
 
 ### Added

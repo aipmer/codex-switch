@@ -37,15 +37,23 @@ fi
 echo "写入 $MODE 配置..."
 cp "$DIR/config-$MODE.toml" "$CODEX_HOME/config.toml"
 
-echo "同步会话显示标记..."
+echo "同步会话显示标记与默认模型..."
+# 预设各模式默认模型与强度，切换后无需在界面重新选择（2026-09-18 新增）：
+# 除新会话默认（config.toml 的 model 字段）外，还需把 threads 表里每个会话钉死的
+# model/reasoning_effort 一并翻转，否则打开旧会话仍用旧模型执行失败。
 if [ "$MODE" = "openai" ]; then
   FROM="custom"; TO="openai"
 else
   FROM="openai"; TO="custom"
 fi
-python3 - "$CODEX_HOME" "$FROM" "$TO" <<'PYEOF'
+case "$MODE" in
+  openai)   DEF_MODEL="gpt-5.6-terra" ;;
+  kimi)     DEF_MODEL="k3-256k" ;;
+  deepseek) DEF_MODEL="deepseek-v4-flash" ;;
+esac
+python3 - "$CODEX_HOME" "$FROM" "$TO" "$DEF_MODEL" <<'PYEOF'
 import sqlite3, sys, os, shutil
-home, frm, to = sys.argv[1], sys.argv[2], sys.argv[3]
+home, frm, to, model = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 db = os.path.join(home, 'state_5.sqlite')
 if not os.path.exists(db):
     print("未找到 state_5.sqlite，跳过"); raise SystemExit
@@ -53,6 +61,8 @@ shutil.copy(db, db + '.bak-switch')
 con = sqlite3.connect(db)
 cur = con.execute("update threads set model_provider=? where model_provider=?", (to, frm))
 print(f"已更新 {cur.rowcount} 条会话标记: {frm} -> {to}")
+cur2 = con.execute("update threads set model=?, reasoning_effort='medium'", (model,))
+print(f"已预设 {cur2.rowcount} 条会话的默认模型: {model}（强度 medium）")
 con.commit(); con.close()
 PYEOF
 
@@ -95,9 +105,9 @@ import os, re, sys, shutil
 mode, home, since = sys.argv[1], sys.argv[2], float(sys.argv[3])
 # 各供应商认识的模型名（不在白名单里的会被改写成默认名，按需修改）
 cfg = {
-    'openai':   (re.compile(r'^gpt-'), 'gpt-5.6-sol'),
+    'openai':   (re.compile(r'^gpt-'), 'gpt-5.6-terra'),
     'deepseek': (re.compile(r'^deepseek-'), 'deepseek-v4-flash'),
-    'kimi':     (re.compile(r'^(kimi-|k3-)'), 'kimi-for-coding'),
+    'kimi':     (re.compile(r'^(kimi-|k3-)'), 'k3-256k'),
 }
 keep, default = cfg[mode]
 pat = re.compile(r'"model":"([^"]+)"')
