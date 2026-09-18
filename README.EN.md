@@ -21,6 +21,8 @@ Built for a real workflow: when your GPT quota runs out or expires, fall back to
   1. **Model-name rewriting**: on resume, codex's pre-sampling compaction pins the model name recorded in the session metadata, ignoring your current config. Cross-provider resumes get rejected with `invalid_request_error`. On every switch, the script batch-rewrites `"model":"..."` in all historical rollout files to the target provider's model name.
   2. **Third-party residue cleanup** (only when switching to OpenAI): history items produced by a third-party direct `/responses` endpoint trip four official-API validations — a reasoning `content` array (`array_above_max_length`), a locally Fernet-encrypted `encrypted_content` (`invalid_encrypted_content`), a third-party `rs_` reasoning id (`Item with id 'rs_...' not found`, since the official store=false has no record), and `tool_`-prefixed tool-call ids (`invalid_id_prefix`; the official API requires `fc`). When switching to openai, the script recursively strips reasoning content/encrypted_content/id and rewrites tool-call id prefixes to `fc` (including items nested in `compacted` payloads); OpenAI receives summaries only and resume works.
   3. **GUI projection-cache invalidation**: the Codex GUI reads conversations from a projection in `thread_history_1.sqlite` that indexes rollout files by byte offset. In-place rewrites invalidate those offsets, leaving the GUI stuck showing stale content. After any rewrite/cleanup, the script deletes the affected threads' projection rows; the app rebuilds them from the jsonl on next launch.
+  4. **Forked-session `history_base` remapping**: a forked session file embeds `history_base.end_byte_offset` in its header, pointing at a byte position in the source rollout file. After an in-place rewrite changes the source's length, the offset falls past the end and the app fails with `invalid paginated history lineage: cutoff byte offset is past the source rollout` — the conversation won't open, and cache invalidation can't help because the offset lives in the jsonl, not the database. `remap-history-base.py` relocates the same line via `end_ordinal_exclusive` in the source file and updates the cutoff to its current byte offset; it supports multi-level fork chains, is idempotent, runs automatically on every switch, and can also run standalone (`python3 remap-history-base.py ~/.codex`) to repair existing breakage.
+- **Incremental + streaming rewrites** (2026-09-18): each rewrite pass keeps its own processed-timestamp and only scans files modified since the last run (archived sessions are processed once and skipped forever); all I/O is line-by-line streaming, never loading a whole file into memory. Switch time no longer grows with session history (tested against a 14 GB / 448-file library with a 464 MB single file). The first switch after upgrading performs one final full scan to establish the baseline.
 - First-touch backups before any rewrite/cleanup (`.bak-model` / `.bak-reasoning` / `.bak-switch`)
 - If CC Switch is installed, its "in use" flag is synced automatically (panel display only)
 
@@ -85,6 +87,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 
 | Symptom | Check |
 | --- | --- |
+| Failed to restore conversation: `cutoff byte offset is past the source rollout` | A forked session's embedded `history_base` byte offset is out of bounds (history rewriting changed the source file's length). Run `python3 remap-history-base.py ~/.codex` and restart the app; newer scripts remap automatically after every switch |
 | kimi mode: Connection refused | `launchctl print gui/$(id -u)/com.codexswitch.codeproxy-kimi`; `tail ~/.codex/codeproxy-kimi.log`; restart with `launchctl kickstart -k gui/$(id -u)/com.codexswitch.codeproxy-kimi` |
 | kimi mode: 401 | Key expired — regenerate in the Kimi Code console, update `--apikey` in `~/.codex/codeproxy-kimi.sh`, kickstart |
 | kimi mode: `not a valid moonshot flavored json schema` | Config bypassed the shim (8788) and hit codeproxy (8787) directly — check `base_url` |
@@ -109,6 +112,7 @@ Generate a catalog from `codex debug models` output, split it per provider, and 
 ## Files
 
 - `codex-switch.sh` — main switch script
+- `remap-history-base.py` — forked-session history_base offset remapping (auto-called on switch, runnable standalone)
 - `config-openai.toml` / `config-deepseek.toml` / `config-kimi.toml` — config templates
 - `切换到*.command` — double-click launchers
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi local proxy templates

@@ -21,6 +21,8 @@ macOS 下 Codex（ChatGPT 桌面应用内置 CLI）的**多供应商一键切换
   1. **模型名改写**：codex 续聊时的 pre-sampling compact 钉死使用会话元数据里记录的模型名，与当前配置无关。跨供应商续聊会被对方 API 以 `invalid_request_error` 拒绝。脚本在每次切换时把历史会话 rollout 里的 `"model":"..."` 批量改写为目标供应商的模型名。
   2. **第三方历史残留清理**（仅切回官方时）：第三方直连 `/responses` 产生的历史项会撞上官方 API 四重校验——reasoning 的 `content` 数组（`array_above_max_length`）、本地 Fernet `encrypted_content`（`invalid_encrypted_content`）、reasoning 的 `rs_` id（`Item with id 'rs_...' not found`，官方 store=false 无记录）、工具调用 `tool_` 前缀 id（`invalid_id_prefix`，官方要求 `fc` 开头）。切到 openai 时脚本递归剥离 reasoning 的 content/encrypted_content/id 并把工具 id 前缀改为 `fc`，官方只收到 summary，可正常续聊。
   3. **GUI 投影缓存失效**：Codex GUI 从 `thread_history_1.sqlite` 的投影（按字节偏移索引 rollout 文件）读取对话；脚本原地改写文件后偏移失效，GUI 会停在旧位置显示过期内容。脚本在改写/清理后自动删除被影响线程的投影行，app 重启后从 jsonl 自动重建。
+  4. **分叉会话 history_base 重映射**：分叉（fork）会话文件头内嵌 `history_base.end_byte_offset`，指向源 rollout 文件的字节位置；原地改写源文件后偏移越界，App 报 `invalid paginated history lineage: cutoff byte offset is past the source rollout`、对话无法打开（该偏移存在 jsonl 里而非数据库，失效缓存救不了）。`remap-history-base.py` 按 `end_ordinal_exclusive` 在源文件中重新定位同一行并把 cutoff 更新为当前字节偏移，支持多级分叉链，幂等可反复运行；每次切换自动调用，也可独立运行 `python3 remap-history-base.py ~/.codex` 修复存量。
+- **增量 + 流式改写**（2026-09-18）：两趟改写各记录独立的处理时间戳，只扫上次处理后变动过的文件（归档会话处理一次即永久跳过）；全程逐行流式读写，不再把整个文件读进内存。切换耗时不再随会话积累增长（实测会话库 14 GB / 448 个文件、单文件最大 464 MB 的场景）。升级后首次切换会做最后一次全量扫描建立基线。
 - 所有改写/清理前自动留首次备份（`.bak-model` / `.bak-reasoning` / `.bak-switch`）
 - 如已安装 CC Switch，自动同步其「使用中」标记（仅作面板展示）
 
@@ -85,6 +87,7 @@ Codex 的内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模�
 
 | 症状 | 检查 |
 | --- | --- |
+| 恢复对话失败：`cutoff byte offset is past the source rollout` | 分叉会话文件头内嵌的 `history_base` 字节偏移越界（历史改写改变了源文件长度）。运行 `python3 remap-history-base.py ~/.codex` 后重启 App；新版脚本已在每次切换后自动重映射 |
 | kimi 模式报 Connection refused | `launchctl print gui/$(id -u)/com.codexswitch.codeproxy-kimi` 看状态；`tail ~/.codex/codeproxy-kimi.log` 看日志；`launchctl kickstart -k gui/$(id -u)/com.codexswitch.codeproxy-kimi` 重启 |
 | kimi 模式报 401 | Key 过期/失效，去 Kimi Code 控制台重建，更新 `~/.codex/codeproxy-kimi.sh` 里的 `--apikey` 后 kickstart 重启 |
 | kimi 模式报 `not a valid moonshot flavored json schema` | 配置绕过了垫片（8788）直连了 codeproxy（8787），检查 `base_url` |
@@ -109,6 +112,7 @@ Codex 的内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模�
 ## 文件清单
 
 - `codex-switch.sh` — 切换主脚本
+- `remap-history-base.py` — 分叉会话 history_base 偏移重映射（切换时自动调用，可独立运行）
 - `config-openai.toml` / `config-deepseek.toml` / `config-kimi.toml` — 三套配置模板
 - `切换到*.command` — 双击入口
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi 本地路由模板

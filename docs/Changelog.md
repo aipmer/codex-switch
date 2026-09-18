@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-18
+
+### Added
+
+- **分叉会话 `history_base` 偏移重映射（`remap-history-base.py`）**：分叉会话文件头内嵌的 `history_base.end_byte_offset` 指向源 rollout 文件的字节位置；历史改写改变源文件长度后偏移越界，App 报 `invalid paginated history lineage: cutoff byte offset is past the source rollout`、对话无法打开（偏移在 jsonl 里而非数据库，失效投影缓存无法解决）。新脚本按 `end_ordinal_exclusive` 在源文件中重新定位同一行并把 cutoff 更新为当前字节偏移，支持多级分叉链，幂等可反复运行，修复后自动失效对应线程的投影缓存。每次切换自动调用，也可独立运行：`python3 remap-history-base.py ~/.codex`
+
+### Changed
+
+- **历史改写改为增量 + 流式**：模型名改写与第三方残留清理各记录独立的处理时间戳（`~/.codex/.switch-rewrite-marker-model` / `-reasoning`），只扫描上次处理后变动过的文件（归档会话处理一次即永久跳过）；全程逐行流式读写，不再把整个文件读进内存，无改动的文件只读不写。切换耗时不再随会话积累增长（实测 14 GB / 448 个文件、单文件最大 464 MB 的会话库）。升级后首次切换会做最后一次全量扫描建立基线
+
 ## [1.2.0] - 2026-09-11
 
 ### 新增

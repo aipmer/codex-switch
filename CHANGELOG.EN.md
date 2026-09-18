@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-18
+
+### Added
+
+- **Forked-session `history_base` offset remapping (`remap-history-base.py`)**: a forked session file embeds `history_base.end_byte_offset` in its header, pointing at a byte position in the source rollout file. After history rewriting changes the source's length, the offset falls past the end and the app fails with `invalid paginated history lineage: cutoff byte offset is past the source rollout` — the conversation won't open, and projection-cache invalidation can't help because the offset lives in the jsonl, not the database. The new script relocates the same line via `end_ordinal_exclusive` in the source file and updates the cutoff to its current byte offset; supports multi-level fork chains, idempotent, auto-invalidates affected threads' projection caches. Runs automatically on every switch; standalone repair: `python3 remap-history-base.py ~/.codex`
+
+### Changed
+
+- **Incremental + streaming history rewrites**: the model-name rewrite and third-party residue cleanup passes each keep their own processed-timestamp (`~/.codex/.switch-rewrite-marker-model` / `-reasoning`) and only scan files modified since the last run (archived sessions are processed once and skipped forever); all I/O is line-by-line streaming — files are never loaded whole into memory, and unchanged files are read-only. Switch time no longer grows with session history (tested against a 14 GB / 448-file library with a 464 MB single file). The first switch after upgrading performs one final full scan to establish the baseline
+
 ## [1.2.0] - 2026-09-11
 
 ### Added
