@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-21
+
+### Fixed
+
+- **trim 覆盖工具输出列表内嵌的 base64 截图**：UI 快照类工具会把截图以 `input_image`（data: URL）形式混在 `custom_tool_call_output` / `function_call_output` 的 `output` 列表与 MCP 结果 `content` 列表里，单张可达 1.6MB；v1.5.0 只处理消息 content 里的图片，遗漏了这类。现在一并换 1x1 占位图（实测一个 8.5MB 的活跃工作会话因此多剪掉 4.2MB）
+
 ## [1.5.0] - 2026-10-21
 
 ### Added

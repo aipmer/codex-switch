@@ -103,6 +103,7 @@ def process_obj(obj, max_field, max_msg, head):
             elif isinstance(r, dict):
                 content = r.get('content')
                 if isinstance(content, list):
+                    saved += trim_images(content, max_field)
                     for c in content:
                         if isinstance(c, dict) and isinstance(c.get('text'), str) and len(c['text']) > max_field:
                             old = c['text']
@@ -114,12 +115,14 @@ def process_obj(obj, max_field, max_msg, head):
                 saved += len(ao) - len(item['aggregated_output'])
 
     # 2) 工具输出：custom_tool_call_output / function_call_output
+    #    （output 列表里可能混有 input_image 截图，如 UI 快照工具返回的 base64 大图）
     if pt in ('custom_tool_call_output', 'function_call_output'):
         out = p.get('output')
         if isinstance(out, str) and len(out) > max_field:
             p['output'] = trim_text(out, head, '历史工具输出已省略')
             saved += len(out) - len(p['output'])
         elif isinstance(out, list):
+            saved += trim_images(out, max_field)
             for part in out:
                 if isinstance(part, dict) and isinstance(part.get('text'), str) and len(part['text']) > max_field:
                     old = part['text']

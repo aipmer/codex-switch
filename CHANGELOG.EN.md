@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-21
+
+### Fixed
+
+- **trim now covers base64 screenshots embedded in tool-output lists**: UI-snapshot tools embed screenshots as `input_image` (data: URLs) inside the `output` list of `custom_tool_call_output` / `function_call_output` and in MCP result `content` lists — a single one can reach 1.6MB. v1.5.0 only handled images in message content and missed these. They are now swapped for the 1x1 placeholder as well (measured: an active 8.5MB work session shed another 4.2MB thanks to this)
+
 ## [1.5.0] - 2026-10-21
 
 ### Added
