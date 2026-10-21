@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-21
+
+### Added
+
+- **Smart trimming of giant sessions (`trim-rollout-output.py`)**: long-running sessions fail to resume with `Your input exceeds the context window of this model` — the app replays the full history to the model, and the bulk is not conversation text but accumulated tool output (image-generation base64, MCP tool output, command output, pasted base64 images, and the `guardian_history` audit copy inside compacted window records). The tool trims only old tool outputs and pasted bulk; user/assistant message text is never touched. Base64 images are swapped for a 1x1 placeholder PNG (keeps structure valid), oversized text keeps a 500-char head plus a placeholder note, and the last 2MB "recent working zone" is left untouched (compacted window records excepted). The original is backed up as `.bak-trim-<timestamp>` and the projection caches of affected threads (including forks) are invalidated. Measured: a 20.8MB session trimmed to 7.6MB, replay payload (latest window + tail) down from ~2.7MB to ~181KB. Usage: `python3 trim-rollout-output.py <rollout.jsonl> [--keep-recent-mb 2] [--max-field-chars 4000] [--max-msg-chars 20000]` — always run `remap-history-base.py` afterwards to repair fork offsets
+
+### Fixed
+
+- **remap now supports `.jsonl.zst` compressed fork sources**: app 0.163.x validates lineage offsets against the **compressed byte size**, while `history_base.end_byte_offset` records decompressed offsets — any source compressed by the maintenance task inevitably fails validation, showing as repeated reconnects and an "cannot open file" tab error. `.zst` candidate sources are now decompressed back to `.jsonl` before offset calculation (the original is renamed to `.zst.bak-lineage` and excluded from scans), self-healing on the next run if the app re-compresses them. Also adds reading compressed sources (`zstd -dc`, offsets measured on decompressed bytes) and a "next surviving line / end of file" fallback when the target ordinal was deleted by cleanup
+
 ## [1.4.0] - 2026-09-18
 
 ### Added

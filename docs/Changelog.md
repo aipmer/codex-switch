@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-21
+
+### Added
+
+- **巨型会话智能修剪（`trim-rollout-output.py`）**：长期使用的会话续聊时报 `Your input exceeds the context window of this model`——App 把全量历史回放给模型，体积大头不是对话文字而是历年的工具输出（图像生成 base64、MCP 工具输出、命令回显、粘贴的 base64 图片、compacted 窗口记录里的 `guardian_history` 审查副本）。本工具只裁旧工具输出与粘贴大文件，user/assistant 消息文字一律不动；base64 图片换 1x1 占位 PNG 保持结构合法，超长文本保留开头 500 字符加占位说明，文件尾部 2MB 最近工作区不动（compacted 窗口记录除外），原文件自动备份 `.bak-trim-<时间戳>` 并失效相关线程（含分叉）投影缓存。实测 20.8MB 会话剪到 7.6MB，回放负载（最新窗口+尾部）从 ~2.7MB 降到 ~181KB。用法：`python3 trim-rollout-output.py <rollout.jsonl> [--keep-recent-mb 2] [--max-field-chars 4000] [--max-msg-chars 20000]`，运行后必须再跑 `remap-history-base.py` 修复分叉偏移
+
+### Fixed
+
+- **remap 兼容 `.jsonl.zst` 压缩分叉源**：App 0.163.x 对压缩源按**压缩后字节数**校验 lineage 偏移，而 `history_base.end_byte_offset` 记录的是解压后偏移——源一旦被维护任务压成 `.zst` 必然越界，症状为打开会话反复重新连接、标签页提示无法打开文件。现在候选源为 `.zst` 时先解压回 `.jsonl` 再计算偏移（原文件改名 `.zst.bak-lineage` 留档不再参与扫描），App 再次压缩则下次运行自动自愈；同时支持读取压缩源（`zstd -dc`，偏移按解压后字节计）与目标 ordinal 已被清理删除时的「下一个幸存行/文件末尾」回退
+
 ## [1.4.0] - 2026-09-18
 
 ### Added
