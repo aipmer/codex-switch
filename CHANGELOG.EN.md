@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-21
+
+### Fixed
+
+- **trim now swaps base64 images inside the protected zone too**: the recent working zone (last 2MB by default) was previously left fully untouched, but large screenshots from UI-snapshot tools (measured: a single 2.3MB image) inside the zone still pushed the request body past third-party gateway nginx limits (kimi mode failed continuations with `413 Payload Too Large`). The zone now protects text only; images are always swapped for the 1x1 placeholder (measured: a 21.4MB active work session trimmed to 1.2MB, resumable in kimi mode again)
+
 ## [1.5.1] - 2026-10-21
 
 ### Fixed

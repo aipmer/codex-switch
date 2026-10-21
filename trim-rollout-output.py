@@ -161,6 +161,34 @@ def invalidate_projections(home, root_tid):
         con.commit(); con.close()
     return len(tids)
 
+def process_images_only(obj, max_field):
+    """保护区内使用的轻量修剪：只换 base64 图片，文本一律不动。返回节省字符数。"""
+    saved = 0
+    p = obj.get('payload')
+    if not isinstance(p, dict):
+        return 0
+    pt = p.get('type')
+    if pt == 'message':
+        saved += trim_images(p.get('content'), max_field)
+    elif pt in ('custom_tool_call_output', 'function_call_output'):
+        out = p.get('output')
+        if isinstance(out, list):
+            saved += trim_images(out, max_field)
+    elif pt == 'item_completed':
+        item = p.get('item')
+        if isinstance(item, dict):
+            r = item.get('result')
+            if isinstance(r, dict):
+                saved += trim_images(r.get('content'), max_field)
+    elif obj.get('type') == 'compacted':
+        for key in ('replacement_history', 'guardian_history'):
+            rh = p.get(key)
+            if isinstance(rh, list):
+                for it in rh:
+                    if isinstance(it, dict):
+                        saved += trim_images(it.get('content'), max_field)
+    return saved
+
 def main():
     ap = argparse.ArgumentParser(description='智能修剪 rollout：裁旧工具输出，保对话文字')
     ap.add_argument('file', help='rollout .jsonl 文件路径（.zst 请先解压）')
@@ -201,7 +229,20 @@ def main():
         # compacted 窗口记录不受尾部保护：它是「已压缩的历史记忆」，回放时整体发送，
         # 恰恰是最需要修剪的部分（窗口里的粘贴资料动辄几百 KB，对话文字则保留）
         if i >= protect_from and b'"type":"compacted"' not in line and b'"type": "compacted"' not in line:
-            new_lines.append(line)
+            # 保护区内仍换 base64 图片：图片是纯体积（单张截图可达 2MB+），
+            # 其上下文由对话文字承载；文字内容在保护区内一律不动
+            try:
+                obj = json.loads(line)
+            except Exception:
+                new_lines.append(line)
+                continue
+            s = process_images_only(obj, args.max_field_chars)
+            if s > 0:
+                trimmed += 1
+                saved_chars += s
+                new_lines.append((json.dumps(obj, ensure_ascii=False) + '\n').encode('utf-8'))
+            else:
+                new_lines.append(line)
             continue
         try:
             obj = json.loads(line)
