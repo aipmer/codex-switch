@@ -31,25 +31,34 @@ TID_RE = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 # 1x1 透明 PNG，用于替换历史里的 base64 粘贴图（保持 input_image 结构合法，
 # 不触发回放校验；图片本身多半是剪贴板截图，对话文字已说明其内容）
-TINY_PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
-            'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+TINY_PNG_B64 = ('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+                'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+TINY_PNG = 'data:image/png;base64,' + TINY_PNG_B64
 
 def trim_images(content, max_field):
-    """content 列表里 input_image 的超长 data: URL 换成 1x1 占位图，返回节省字符数。"""
+    """content 列表里的图片换成 1x1 占位图，返回节省字符数。覆盖两种形态：
+    - input_image：image_url 为超长 data: URL（粘贴截图 / UI 快照工具输出）
+    - MCP 图片结果：{type:'image', data: base64, mimeType:'image/...'}"""
     saved = 0
     if not isinstance(content, list):
         return 0
     for c in content:
-        if not isinstance(c, dict) or c.get('type') != 'input_image':
+        if not isinstance(c, dict):
             continue
-        u = c.get('image_url')
-        if isinstance(u, str) and len(u) > max_field and u.startswith('data:'):
-            c['image_url'] = TINY_PNG
-            saved += len(u) - len(TINY_PNG)
-        elif isinstance(u, dict) and isinstance(u.get('url'), str) and len(u['url']) > max_field and u['url'].startswith('data:'):
-            old = u['url']
-            u['url'] = TINY_PNG
-            saved += len(old) - len(TINY_PNG)
+        if c.get('type') == 'input_image':
+            u = c.get('image_url')
+            if isinstance(u, str) and len(u) > max_field and u.startswith('data:'):
+                c['image_url'] = TINY_PNG
+                saved += len(u) - len(TINY_PNG)
+            elif isinstance(u, dict) and isinstance(u.get('url'), str) and len(u['url']) > max_field and u['url'].startswith('data:'):
+                old = u['url']
+                u['url'] = TINY_PNG
+                saved += len(old) - len(TINY_PNG)
+        d = c.get('data')
+        mt = c.get('mimeType') or ''
+        if isinstance(d, str) and len(d) > max_field and str(mt).startswith('image/'):
+            c['data'] = TINY_PNG_B64
+            saved += len(d) - len(TINY_PNG_B64)
     return saved
 
 def trim_text(s, keep_head, note):

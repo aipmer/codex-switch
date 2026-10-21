@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-10-21
+
+### Fixed
+
+- **trim now covers MCP image results**: MCP tools return images as `{type:'image', data: base64, mimeType}` (image bytes in `data`, not `image_url`), which all prior versions missed — measured: one 2026-09-26 session retained 166 such results totaling 10.2MB. They are now swapped for the 1x1 placeholder too (that session's replay payload dropped from 12.1MB to 1.8MB)
+
 ## [1.5.2] - 2026-10-21
 
 ### Fixed
