@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-22
+
+### Added
+
+- **trim: 7-day safety window + over-window rescue auto-pass**: the creation date is parsed from the `rollout-YYYY-MM-DD` filename; sessions younger than 7 days are refused by default (prevents mis-trimming active recent sessions), overridable with `--force`. Exception: young sessions whose replay payload (latest compacted window + tail) is estimated to exceed the 1M-token context window are auto-approved — they cannot run at all without trimming
+- **Schema shim: empty-assistant cleanup**: during codeproxy conversion, fully empty reasoning items (Codex writes one every turn, with empty summary/content) and empty assistant messages produce a bare assistant message with `content=null`, which Kimi rejects with `the message at position N with role 'assistant' must not be empty` — and it breaks auto-compaction ("compaction interrupted"). The shim now drops these empty items before forwarding (a reasoning item whose summary has text gets that text moved into content instead). The shim script lives in the repo root; the switch script's kimi branch syncs it to `~/.codex` and restarts the shim service
+
 ## [1.6.0] - 2026-10-22
 
 ### Changed

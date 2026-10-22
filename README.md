@@ -24,7 +24,7 @@ macOS 下 Codex（ChatGPT 桌面应用内置 CLI）的**多供应商一键切换
   4. **分叉会话 history_base 重映射**：分叉（fork）会话文件头内嵌 `history_base.end_byte_offset`，指向源 rollout 文件的字节位置；原地改写源文件后偏移越界，App 报 `invalid paginated history lineage: cutoff byte offset is past the source rollout`、对话无法打开（该偏移存在 jsonl 里而非数据库，失效缓存救不了）。`remap-history-base.py` 按 `end_ordinal_exclusive` 在源文件中重新定位同一行并把 cutoff 更新为当前字节偏移，支持多级分叉链，幂等可反复运行；每次切换自动调用，也可独立运行 `python3 remap-history-base.py ~/.codex` 修复存量。2026-10-21 起兼容 `.jsonl.zst` 压缩源：App 0.163.x 对压缩源按**压缩后字节数**校验偏移，源一旦被维护任务压成 `.zst` 必然越界（症状：打开会话反复重新连接、标签页提示无法打开文件），脚本会先把压缩源解压回 `.jsonl` 再计算偏移（原文件留 `.zst.bak-lineage` 备份），App 再次压缩则下次运行自动自愈。
 - **增量 + 流式改写**（2026-09-18）：两趟改写各记录独立的处理时间戳，只扫上次处理后变动过的文件（归档会话处理一次即永久跳过）；全程逐行流式读写，不再把整个文件读进内存。切换耗时不再随会话积累增长（实测会话库 14 GB / 448 个文件、单文件最大 464 MB 的场景）。升级后首次切换会做最后一次全量扫描建立基线。
 - **默认模型预设**（2026-09-18）：切换后无需在界面重新选择模型——openai→`gpt-5.6-terra`、kimi→`k3`（K3 1M，2026-10-22 起；旧名 `k3-256k` 会被自动改写）、deepseek→`deepseek-v4-flash`，强度统一 medium。除写入 config 的新会话默认值外，还会翻转 `threads` 表中每个会话钉死的 `model` / `reasoning_effort`，否则打开旧会话仍用旧模型执行失败（按需修改脚本里的 `DEF_MODEL` 与各 config 模板的 `model` 字段）。
-- **巨型会话智能修剪**（2026-10-21，`trim-rollout-output.py`）：长期使用的会话续聊时报 `Your input exceeds the context window of this model`，因为 App 把全量历史回放给模型。体积大头不是对话文字而是历年的工具输出（图像生成 base64、MCP 工具输出、命令回显、粘贴的 base64 图片、compacted 窗口记录里的 `guardian_history` 审查副本——实测一个 2.7MB 窗口记录里回放正文仅 66KB、审查副本占 2.2MB）。本工具只裁旧工具输出与粘贴大文件，user/assistant 消息文字一律不动，模型仍记得「做过什么、结论是什么」；base64 图片换 1x1 占位图保持结构合法，超长文本保留开头 500 字符加占位说明，文件尾部 2MB 最近工作区文字不动（compacted 窗口记录除外；v1.5.2 起保护区内的 base64 图片也会换占位图——图片是纯体积，上下文由文字承载），原文件自动备份 `.bak-trim-<时间戳>` 并失效相关线程投影缓存。修剪改变字节偏移，**运行后必须再跑 `remap-history-base.py`**。实测 20.8MB 会话剪到 7.6MB，回放负载从 ~2.7MB 降到 ~181KB。用法：`python3 trim-rollout-output.py <rollout.jsonl> [--keep-recent-mb 2] [--max-field-chars 4000]`
+- **巨型会话智能修剪**（2026-10-21，`trim-rollout-output.py`）：长期使用的会话续聊时报 `Your input exceeds the context window of this model`，因为 App 把全量历史回放给模型。体积大头不是对话文字而是历年的工具输出（图像生成 base64、MCP 工具输出、命令回显、粘贴的 base64 图片、compacted 窗口记录里的 `guardian_history` 审查副本——实测一个 2.7MB 窗口记录里回放正文仅 66KB、审查副本占 2.2MB）。本工具只裁旧工具输出与粘贴大文件，user/assistant 消息文字一律不动，模型仍记得「做过什么、结论是什么」；base64 图片换 1x1 占位图保持结构合法，超长文本保留开头 500 字符加占位说明，文件尾部 2MB 最近工作区文字不动（compacted 窗口记录除外；v1.5.2 起保护区内的 base64 图片也会换占位图——图片是纯体积，上下文由文字承载），原文件自动备份 `.bak-trim-<时间戳>` 并失效相关线程投影缓存。修剪改变字节偏移，**运行后必须再跑 `remap-history-base.py`**。实测 20.8MB 会话剪到 7.6MB，回放负载从 ~2.7MB 降到 ~181KB。用法：`python3 trim-rollout-output.py <rollout.jsonl> [--keep-recent-mb 2] [--max-field-chars 4000] [--force]`。**7 天保护期**（v1.6.1）：按文件名 `rollout-YYYY-MM-DD` 解析创建日期，不足 7 天的会话默认拒绝修剪（近期历史仍活跃，误裁代价高），确需修剪加 `--force`；**例外**——回放负载（最新 compacted 窗口 + 尾部）估算超 1M token 窗口的年轻会话属超限救援，自动放行（不剪根本跑不起来）
 - 所有改写/清理前自动留首次备份（`.bak-model` / `.bak-reasoning` / `.bak-switch`）
 - 如已安装 CC Switch，自动同步其「使用中」标记（仅作面板展示）
 
@@ -52,7 +52,7 @@ chmod +x codex-switch.sh *.command codeproxy-kimi.sh
 2. 编辑 `codeproxy-kimi.sh`，替换 `YOUR_KIMI_API_KEY`，复制到 `~/.codex/`（launchd 可能无权访问 Documents 等目录）
 3. 编辑 `com.codexswitch.codeproxy-kimi.plist`，把两处 `REPLACE_WITH_HOME` 替换为你的 home 目录绝对路径，复制到 `~/Library/LaunchAgents/`
 4. 加载：`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.codexswitch.codeproxy-kimi.plist`
-5. Codex 桌面版内置 MCP 工具的 schema 会被 Kimi 校验器拒绝（`moonshot flavored json schema` 报错），因此还需 schema 垫片：把 `schema-shim-kimi.py` 复制到 `~/.codex/`，编辑 `com.codexswitch.schema-shim-kimi.plist` 的两处 `REPLACE_WITH_*` 后同样放入 LaunchAgents 并 bootstrap。链路为 Codex → 垫片(8788) → codeproxy(8787) → Kimi；`config-kimi.toml` 的 `base_url` 指向 8788
+5. Codex 桌面版内置 MCP 工具的 schema 会被 Kimi 校验器拒绝（`moonshot flavored json schema` 报错），因此还需 schema 垫片：把 `schema-shim-kimi.py` 复制到 `~/.codex/`，编辑 `com.codexswitch.schema-shim-kimi.plist` 的两处 `REPLACE_WITH_*` 后同样放入 LaunchAgents 并 bootstrap。链路为 Codex → 垫片(8788) → codeproxy(8787) → Kimi；`config-kimi.toml` 的 `base_url` 指向 8788。v1.6.1 起垫片还会清理 input 里完全空的 reasoning / 空 assistant 条目（它们经 codeproxy 转换会生成 `content=null` 的裸 assistant 消息，被 Kimi 拒收：`the message at position N with role 'assistant' must not be empty`，并拖垮自动压缩）；切换脚本在 kimi 分支会自动同步新版垫片并重启服务
 
 之后 `codex-switch.sh kimi` 会自动确保路由在运行。
 
@@ -94,6 +94,7 @@ Codex 的内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模�
 | kimi 模式报 Connection refused | `launchctl print gui/$(id -u)/com.codexswitch.codeproxy-kimi` 看状态；`tail ~/.codex/codeproxy-kimi.log` 看日志；`launchctl kickstart -k gui/$(id -u)/com.codexswitch.codeproxy-kimi` 重启 |
 | kimi 模式报 401 | Key 过期/失效，去 Kimi Code 控制台重建，更新 `~/.codex/codeproxy-kimi.sh` 里的 `--apikey` 后 kickstart 重启 |
 | kimi 模式报 `not a valid moonshot flavored json schema` | 配置绕过了垫片（8788）直连了 codeproxy（8787），检查 `base_url` |
+| kimi 模式报 `the message at position N with role 'assistant' must not be empty`（常伴「压缩已中断」） | 历史里有完全空的 reasoning/assistant 条目，codeproxy 转换出裸 assistant 被 Kimi 拒收。v1.6.1 起垫片自动清理；还在报说明垫片是旧版，重跑切换脚本同步新版垫片即可（会话文件本身不用动） |
 | kimi 模式报 tool_search 不支持 | 配置走了直连而非路由，确认 `~/.codex/config.toml` 的 `base_url = "http://127.0.0.1:8787/v1"` |
 | 第三方模式下浏览器控制报 `Codex auth token is unavailable` | 内嵌浏览器/Computer Use 是 OpenAI 云端服务，第三方模式必然不可用。用「第三方模式的浏览器控制」一节的 WebBridge 桥接方案 |
 | 切换后历史会话不见了 | 会话标记没同步，重跑一次切换脚本即可（脚本会翻转 `state_5.sqlite` 的 provider 标记） |
@@ -120,7 +121,7 @@ Codex 的内嵌浏览器 / Computer Use 是 OpenAI 云端服务，第三方模�
 - `config-openai.toml` / `config-deepseek.toml` / `config-kimi.toml` — 三套配置模板
 - `切换到*.command` — 双击入口
 - `codeproxy-kimi.sh` + `com.codexswitch.codeproxy-kimi.plist` — Kimi 本地路由模板
-- `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema 修正垫片模板
+- `schema-shim-kimi.py` + `com.codexswitch.schema-shim-kimi.plist` — Kimi schema 修正垫片模板（修 $ref 兄弟字段；v1.6.1 起还会清理会产生「空 assistant」的空 reasoning/空 assistant 条目）
 - `webbridge-mcp.py` + `skills/webbridge-browser/SKILL.md` — 第三方模式的浏览器控制桥接（需 Kimi WebBridge）
 
 ## License

@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-22
+
+### Added
+
+- **trim 7 天保护期 + 超限救援自动放行**：按文件名 `rollout-YYYY-MM-DD` 解析创建日期，不足 7 天的会话默认拒绝修剪（防止误裁近期活跃会话），`--force` 可放行；例外：回放负载（最新 compacted 窗口 + 尾部）估算超 1M token 窗口的年轻会话自动放行——不修剪根本跑不起来
+- **schema 垫片「空 assistant 清理」**：codeproxy 转换时，完全空的 reasoning 条目（Codex 每轮都写，summary/content 皆空）和空 assistant 消息会生成 `content=null` 的裸 assistant 消息，Kimi 拒收报 `the message at position N with role 'assistant' must not be empty`，还会拖垮自动压缩（表现为「压缩已中断」）。垫片转发前丢弃这些空条目（summary 有文字的 reasoning 把文字搬进 content 保留）。垫片脚本收进仓库根目录，切换脚本 kimi 分支自动同步到 `~/.codex` 并重启垫片服务
+
 ## [1.6.0] - 2026-10-22
 
 ### Changed

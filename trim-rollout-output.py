@@ -209,6 +209,8 @@ def main():
                     help='compacted 窗口内粘贴文本超过此字符数才修剪（默认 20000）')
     ap.add_argument('--keep-head', type=int, default=500,
                     help='修剪时保留开头多少字符作提示（默认 500）')
+    ap.add_argument('--force', action='store_true',
+                    help='放行创建不足 7 天且未超窗口的会话（超窗口的自动放行，无需 --force）')
     args = ap.parse_args()
 
     path = os.path.abspath(os.path.expanduser(args.file))
@@ -220,6 +222,30 @@ def main():
     with open(path, 'rb') as f:
         lines = f.readlines()
     total = sum(len(l) for l in lines)
+
+    # 7 天保护期：按文件名 rollout-YYYY-MM-DD 解析创建日期，
+    # 不足 7 天的会话默认拒绝修剪（近期会话历史仍活跃，误裁代价高）。
+    # 例外：回放负载（最新 compacted 窗口 + 尾部）估算已超 1M token 窗口的会话
+    # 属于超限救援，自动放行——不修剪它根本跑不起来
+    dm = re.search(r'rollout-(\d{4})-(\d{2})-(\d{2})T', os.path.basename(path))
+    if dm and not args.force:
+        created = datetime.date(int(dm.group(1)), int(dm.group(2)), int(dm.group(3)))
+        age_days = (datetime.date.today() - created).days
+        if age_days < 7:
+            last_comp = -1
+            comp_chars = 0
+            for i, raw in enumerate(lines):
+                if b'"compacted"' in raw:
+                    last_comp = i
+                    comp_chars = len(raw)
+            replay = comp_chars + (sum(len(l) for l in lines[last_comp + 1:]) if last_comp >= 0 else total)
+            est_tokens = replay / 3  # 中英混合约 3 字符/token 的保守估算
+            if est_tokens > 1_000_000:
+                print(f'注意：会话创建于 {created}（{age_days} 天前），但回放估算 ~{int(est_tokens):,} token '
+                      f'已超 1M 窗口，按超限救援放行')
+            else:
+                sys.exit(f'拒绝：该会话创建于 {created}（{age_days} 天前），不足 7 天保护期'
+                         f'（回放估算 ~{int(est_tokens):,} token，未超窗口）。确需修剪请加 --force')
 
     # 计算最近保护区：从尾部累积 keep_recent_mb 的字节数
     keep_bytes = int(args.keep_recent_mb * 1e6)

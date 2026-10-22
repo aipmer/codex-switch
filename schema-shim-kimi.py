@@ -5,6 +5,11 @@
 兄弟字段写法（JSON Schema 2020-12 合法），但 Kimi(moonshot) 校验器拒绝，
 报 "tools.function.parameters is not a valid moonshot flavored json schema"。
 本垫片把带兄弟字段的 $ref 就地展开合并，其余流量原样透传。
+
+2026-10-22 新增：清理 responses input 里会产生「空 assistant」的条目
+（空 reasoning / 空 assistant 消息），修复 Kimi 报错
+"the message at position N with role 'assistant' must not be empty"。
+详见 clean_input 注释。
 """
 import json
 import re
@@ -17,7 +22,62 @@ UPSTREAM = "http://127.0.0.1:8787"
 LISTEN = ("127.0.0.1", 8788)
 
 REF_RE = re.compile(r'^#/\$defs/(.+)$')
-_stats = {"requests": 0, "fixed": 0}
+_stats = {"requests": 0, "fixed": 0, "dropped": 0}
+
+
+def _text_of(parts):
+    """从 content/summary 列表提取拼接文本。"""
+    out = ""
+    if isinstance(parts, str):
+        return parts
+    if isinstance(parts, list):
+        for p in parts:
+            if isinstance(p, str):
+                out += p
+            elif isinstance(p, dict):
+                out += str(p.get("text") or "")
+    return out
+
+
+def clean_input(data):
+    """清理 responses input 里会产生「空 assistant」的条目（2026-10-22）。
+
+    codeproxy 转换时，只要上一条不是 assistant 就新建 {role:assistant, content:null}：
+    - 完全空的 reasoning（content/summary 都无文字）→ 裸 assistant（content=null，
+      reasoning_content=""，不会被占位符回填）→ Kimi 报 "must not be empty"
+    - content 为空的 assistant message → 同样产生裸 assistant
+    处理：空 reasoning 直接丢弃（不携带任何信息）；summary 有文字但 content 空的
+    reasoning 把 summary 文字搬进 content；空 assistant 消息直接丢弃。
+    """
+    items = data.get("input")
+    if not isinstance(items, list):
+        return 0
+    kept = []
+    dropped = 0
+    for it in items:
+        if not isinstance(it, dict):
+            kept.append(it)
+            continue
+        t = it.get("type")
+        if t == "reasoning":
+            content_text = _text_of(it.get("content"))
+            if not content_text.strip():
+                summary_text = _text_of(it.get("summary"))
+                if summary_text.strip():
+                    it = dict(it)
+                    it["content"] = [{"type": "reasoning_text", "text": summary_text}]
+                    kept.append(it)
+                else:
+                    dropped += 1
+                continue
+        elif t == "message" and it.get("role") == "assistant":
+            if not _text_of(it.get("content")).strip():
+                dropped += 1
+                continue
+        kept.append(it)
+    if dropped or len(kept) != len(items):
+        data["input"] = kept
+    return dropped
 
 
 def fix_schema(node, defs, counter):
@@ -51,8 +111,13 @@ def sanitize(body_bytes):
         data = json.loads(body_bytes)
     except Exception:
         return body_bytes, 0
+    dropped = clean_input(data)
+    if dropped:
+        _stats["dropped"] += dropped
     tools = data.get("tools")
     if not isinstance(tools, list):
+        if dropped:
+            return json.dumps(data).encode(), 0
         return body_bytes, 0
     counter = [0]
 
@@ -69,7 +134,7 @@ def sanitize(body_bytes):
                 walk(v)
 
     walk(tools)
-    if counter[0]:
+    if counter[0] or dropped:
         return json.dumps(data).encode(), counter[0]
     return body_bytes, 0
 

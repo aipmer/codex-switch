@@ -14,6 +14,7 @@ CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 # Kimi 本地路由的 launchd 服务名（安装 codeproxy 时使用的 Label，
 # 见 README「Kimi 本地路由」一节；不用 Kimi 可忽略）
 LAUNCHD_LABEL="${CODEX_SWITCH_LAUNCHD_LABEL:-com.codexswitch.codeproxy-kimi}"
+SHIM_LABEL="${CODEX_SWITCH_SHIM_LABEL:-com.codexswitch.schema-shim-kimi}"
 
 # Codex 应用与 CLI 路径（默认 ChatGPT 桌面应用内置的 codex）
 CODEX_APP="${CODEX_SWITCH_APP:-ChatGPT}"
@@ -29,8 +30,12 @@ sleep 3
 
 if [ "$MODE" = "kimi" ]; then
   echo "确保 Kimi 本地路由运行中..."
+  # schema 垫片同步到 ~/.codex（修 $ref 兄弟字段 + 清理空 assistant 条目）
+  [ -f "$DIR/schema-shim-kimi.py" ] && cp "$DIR/schema-shim-kimi.py" "$CODEX_HOME/schema-shim-kimi.py"
   launchctl kickstart -k "gui/$(id -u)/$LAUNCHD_LABEL" 2>/dev/null || \
     launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist" 2>/dev/null || true
+  launchctl kickstart -k "gui/$(id -u)/$SHIM_LABEL" 2>/dev/null || \
+    launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$SHIM_LABEL.plist" 2>/dev/null || true
   sleep 2
 fi
 
