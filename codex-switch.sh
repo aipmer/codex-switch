@@ -48,7 +48,7 @@ else
 fi
 case "$MODE" in
   openai)   DEF_MODEL="gpt-5.6-terra" ;;
-  kimi)     DEF_MODEL="k3-256k" ;;
+  kimi)     DEF_MODEL="k3" ;;
   deepseek) DEF_MODEL="deepseek-v4-flash" ;;
 esac
 python3 - "$CODEX_HOME" "$FROM" "$TO" "$DEF_MODEL" <<'PYEOF'
@@ -107,7 +107,7 @@ mode, home, since = sys.argv[1], sys.argv[2], float(sys.argv[3])
 cfg = {
     'openai':   (re.compile(r'^gpt-'), 'gpt-5.6-terra'),
     'deepseek': (re.compile(r'^deepseek-'), 'deepseek-v4-flash'),
-    'kimi':     (re.compile(r'^(kimi-|k3-)'), 'k3-256k'),
+    'kimi':     (re.compile(r'^(kimi-|k3-)'), 'k3'),
 }
 keep, default = cfg[mode]
 pat = re.compile(r'"model":"([^"]+)"')

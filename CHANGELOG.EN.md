@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-22
+
+### Changed
+
+- **kimi default model upgraded to `k3` (K3 1M, 1,048,576-token context)**: after Kimi launched the K3 (1M) variant, the old `k3-256k` default made long-session continuations fail with `Your request exceeded k3-256k model token limit: 262144` — the UI model picker doesn't change a thread's pinned model, so requests still went out as 256K. The config template default, the script's `DEF_MODEL`, and the history-rewrite mapping target are all `k3` now; threads pinned to `k3-256k` flip automatically on switch, and legacy names (`k3-256k` / `kimi-*`) are normalized to `k3` by the rewrite pass
+
 ## [1.5.3] - 2026-10-21
 
 ### Fixed

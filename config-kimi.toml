@@ -4,7 +4,7 @@
 # 安装方法见 README「Kimi 本地路由」一节。
 
 model_provider = "custom"
-model = "k3-256k"
+model = "k3"
 model_reasoning_effort = "medium"
 disable_response_storage = true
 approval_policy = "on-request"
